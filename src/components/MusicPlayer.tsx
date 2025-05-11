@@ -1,109 +1,64 @@
-
-import { useEffect, useState } from 'react';
-import { Music } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
+import { useRef, useState, useEffect } from "react";
+import { Play, Pause, Volume2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 
 const MusicPlayer = () => {
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const iframeSrc = "https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/1693705880&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false";
-
-  useEffect(() => {
-    // Initialize SoundCloud Widget API
-    let widget: any;
-
-    // Function to setup the SoundCloud Widget
-    const setupWidget = () => {
-      if (window.SC && window.SC.Widget && iframeLoaded) {
-        const iframeElement = document.getElementById('soundcloud-player');
-        if (iframeElement) {
-          widget = window.SC.Widget(iframeElement);
-          
-          widget.bind(window.SC.Events.READY, () => {
-            console.log('SoundCloud widget is ready');
-          });
-
-          widget.bind(window.SC.Events.ERROR, () => {
-            console.error("Error with SoundCloud player");
-            toast({
-              title: "Erro na música",
-              description: "Não foi possível carregar a música. Tente novamente mais tarde.",
-              variant: "destructive",
-            });
-          });
-        }
-      }
-    };
-
-    // Load the SoundCloud Widget API
-    const loadSoundCloudAPI = () => {
-      if (!window.SC) {
-        const script = document.createElement('script');
-        script.src = 'https://w.soundcloud.com/player/api.js';
-        script.onload = setupWidget;
-        document.body.appendChild(script);
-      } else {
-        setupWidget();
-      }
-    };
-
-    if (iframeLoaded) {
-      loadSoundCloudAPI();
-    }
-
-    return () => {
-      if (widget) {
-        widget.unbind(window.SC.Events.READY);
-        widget.unbind(window.SC.Events.ERROR);
-      }
-    };
-  }, [iframeLoaded]);
 
   const togglePlay = () => {
-    if (window.SC && window.SC.Widget) {
-      const widget = window.SC.Widget(document.getElementById('soundcloud-player'));
-      
-      if (isPlaying) {
-        widget.pause();
-      } else {
-        widget.play().catch((e: any) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((e) => {
           console.error("Erro ao reproduzir áudio:", e);
           toast({
             title: "Erro na música",
-            description: "Não foi possível reproduzir a música. Tente novamente mais tarde.",
+            description: "Não foi possível reproduzir a música. Verifique o arquivo.",
             variant: "destructive",
           });
         });
-      }
-      
-      setIsPlaying(!isPlaying);
-    } else {
-      toast({
-        title: "Carregando player",
-        description: "Aguarde um momento enquanto o player de música é carregado.",
-      });
     }
   };
 
+  useEffect(() => {
+    const handlePlayEvent = () => {
+      togglePlay();
+    };
+
+    window.addEventListener("playMusic", handlePlayEvent);
+    return () => window.removeEventListener("playMusic", handlePlayEvent);
+  }, [isPlaying]);
+
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <iframe 
-        id="soundcloud-player" 
-        src={iframeSrc}
-        onLoad={() => setIframeLoaded(true)}
-        style={{ display: 'none' }}
-        allow="autoplay"
-      />
-      <Button 
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center gap-2">
+      <audio ref={audioRef} src="/musica.mp3" preload="auto" />
+
+      <Button
         onClick={togglePlay}
         variant="outline"
         size="icon"
-        className={`rounded-full w-14 h-14 shadow-lg ${isPlaying ? 'bg-envelope text-white' : 'bg-white text-envelope'}`}
+        className={\`rounded-full w-14 h-14 shadow-lg transition-colors duration-300 \${isPlaying ? "bg-envelope text-white" : "bg-white text-envelope"}\`}
       >
-        <Music className={`${isPlaying ? 'animate-pulse' : ''}`} />
+        {isPlaying ? (
+          <Pause className="w-6 h-6" />
+        ) : (
+          <Play className="w-6 h-6" />
+        )}
       </Button>
-      <p className="text-xs mt-2 text-center">{isPlaying ? 'Pausar' : 'Tocar'} Música</p>
+
+      <div className="flex items-center text-xs text-gray-500">
+        <Volume2 size={14} className="mr-1" />
+        {isPlaying ? "Pausar" : "Tocar"} Música
+      </div>
     </div>
   );
 };
